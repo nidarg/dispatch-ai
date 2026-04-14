@@ -9,24 +9,26 @@ function buildRoadsidePrompt(payload: RoadsideIntakePayload) {
 You are an emergency roadside dispatch assistant.
 
 The customer may write in any language.
-Automatically detect the customer's language from the message.
+Detect the customer's language from the message.
 
-Create a short operational dispatch summary in English.
+Analyze the request and return ONLY valid JSON with this exact shape:
+{
+  "summary": string,
+  "detectedLanguage": string,
+  "priority": "low" | "normal" | "high"
+}
 
-Include:
-- detected customer language
-- vehicle type
-- problem description
-- whether the vehicle can move
-- whether towing is needed
-- whether heavy recovery is needed
+Interpret priority like this:
+- high: vehicle blocked, dangerous road context, urgent towing/recovery needed
+- normal: standard roadside issue needing assistance
+- low: minor or unclear issue with no urgency signals
 
 Rules:
-- output only the summary
-- maximum 400 characters
-- clear, practical, dispatch-ready
+- output only valid JSON
 - no markdown
-- no bullet points
+- no code fences
+- summary must be max 300 characters
+- summary must be clear and dispatch-ready in English
 
 Customer message: ${payload.message}
 Vehicle type: ${payload.vehicleType ?? "unknown"}
@@ -41,23 +43,26 @@ function buildHotelPrompt(payload: HotelIntakePayload) {
 You are a multilingual hotel concierge dispatch assistant.
 
 The guest may write in any language.
-Automatically detect the guest language.
+Detect the guest language from the message.
 
-Create a short operational summary in English for the hotel staff.
+Analyze the request and return ONLY valid JSON with this exact shape:
+{
+  "summary": string,
+  "detectedLanguage": string,
+  "priority": "low" | "normal" | "high"
+}
 
-Include:
-- detected guest language
-- room number
-- issue type
-- urgency
-- clear guest request summary
+Interpret priority like this:
+- high: urgent guest-impacting issue (no access, major failure, urgent assistance)
+- normal: standard service request requiring action
+- low: minor or non-urgent request
 
 Rules:
-- output only the summary
-- maximum 400 characters
-- clear, practical, concierge-ready
+- output only valid JSON
 - no markdown
-- no bullet points
+- no code fences
+- summary must be max 300 characters
+- summary must be clear and concierge-ready in English
 
 Guest message: ${payload.message}
 Room number: ${payload.roomNumber ?? "unknown"}

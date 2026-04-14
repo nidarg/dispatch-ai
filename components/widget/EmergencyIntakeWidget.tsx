@@ -13,6 +13,9 @@ import type { WidgetConfig } from "@/lib/widget-config";
 
 type IntakeResponse = {
   summary: string;
+  detectedLanguage: string;
+  priority: "low" | "normal" | "high";
+  useCase: "roadside" | "hotel";
 };
 
 type EmergencyIntakeWidgetProps = {
@@ -32,7 +35,7 @@ export default function EmergencyIntakeWidget({
   config,
   onClose,
 }: EmergencyIntakeWidgetProps) {
-  const { whatsappNumber, companyName, useCase, enableLocation } = config;
+  const { slug, whatsappNumber, companyName, useCase, enableLocation } = config;
   const accentColor = config.accentColor ?? "#dc2626";
 
   const badgeStyle = {
@@ -80,6 +83,7 @@ export default function EmergencyIntakeWidget({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          companySlug: slug,
           message,
           useCase,
           vehicleType: useCase === "roadside" ? vehicleType : undefined,
@@ -94,8 +98,10 @@ export default function EmergencyIntakeWidget({
       });
 
       if (!res.ok) {
-        throw new Error("Request failed");
-      }
+  const errorData = await res.json().catch(() => null);
+  console.error("Emergency intake API error:", errorData);
+  throw new Error(errorData?.error || "Request failed");
+}
 
       const data: IntakeResponse = await res.json();
 
@@ -161,10 +167,13 @@ Precise GPS location could not be detected. If possible, please share your locat
           maximumAge: 0,
         }
       );
-    } catch (err) {
-      console.error("Emergency intake submit failed:", err);
-      setError("Something went wrong. Please try again.");
-    } finally {
+   } catch (err) {
+  console.error("Emergency intake submit failed:", err);
+
+  setError(
+    err instanceof Error ? err.message : "Something went wrong. Please try again."
+  );
+} finally {
       setLoading(false);
     }
   };

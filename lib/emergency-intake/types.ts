@@ -1,5 +1,7 @@
 export type EmergencyUseCase = "roadside" | "hotel";
 
+export type EmergencyPriority = "low" | "normal" | "high";
+
 export type RoadsideIntakePayload = {
   message: string;
   useCase: "roadside";
@@ -23,10 +25,14 @@ export type EmergencyIntakePayload =
 
 export type EmergencyIntakeSuccessResponse = {
   summary: string;
-  detectedLanguage?: string;
+  detectedLanguage: string;
+  priority: EmergencyPriority;
   useCase: EmergencyUseCase;
 };
 
 export type EmergencyIntakeErrorResponse = {
   error: string;
+};
+export type EmergencyIntakeRequestBody = EmergencyIntakePayload & {
+  companySlug: string;
 };
