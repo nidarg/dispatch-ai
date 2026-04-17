@@ -20,6 +20,35 @@ function normalizePriority(value: unknown): EmergencyPriority {
   return "normal";
 }
 
+function normalizeDetectedLanguage(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) {
+    return "Unknown";
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  const languageMap: Record<string, string> = {
+    en: "English",
+    english: "English",
+    de: "German",
+    german: "German",
+    it: "Italian",
+    italian: "Italian",
+    ro: "Romanian",
+    romanian: "Romanian",
+    pl: "Polish",
+    polish: "Polish",
+    nl: "Dutch",
+    dutch: "Dutch",
+    fr: "French",
+    french: "French",
+    es: "Spanish",
+    spanish: "Spanish",
+  };
+
+  return languageMap[normalized] ?? value.trim();
+}
+
 function safeParseStructuredOutput(text: string): ModelStructuredOutput | null {
   try {
     return JSON.parse(text) as ModelStructuredOutput;
@@ -52,11 +81,7 @@ export async function generateEmergencySummary(
 
   return {
     summary: parsed.summary.trim(),
-    detectedLanguage:
-      typeof parsed.detectedLanguage === "string" &&
-      parsed.detectedLanguage.trim()
-        ? parsed.detectedLanguage.trim()
-        : "Unknown",
+    detectedLanguage: normalizeDetectedLanguage(parsed.detectedLanguage),
     priority: normalizePriority(parsed.priority),
     useCase: payload.useCase,
   };

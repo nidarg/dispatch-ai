@@ -18,6 +18,11 @@ Analyze the request and return ONLY valid JSON with this exact shape:
   "priority": "low" | "normal" | "high"
 }
 
+Rules for detectedLanguage:
+- return the full language name in English
+- examples: "English", "German", "Italian", "Romanian", "Polish", "Dutch"
+- do not return language codes like "en", "de", "it", "ro"
+
 Interpret priority like this:
 - high: vehicle blocked, dangerous road context, urgent towing/recovery needed
 - normal: standard roadside issue needing assistance
@@ -51,6 +56,11 @@ Analyze the request and return ONLY valid JSON with this exact shape:
   "detectedLanguage": string,
   "priority": "low" | "normal" | "high"
 }
+
+Rules for detectedLanguage:
+- return the full language name in English
+- examples: "English", "German", "Italian", "Romanian", "Polish", "Dutch"
+- do not return language codes like "en", "de", "it", "ro"
 
 Interpret priority like this:
 - high: urgent guest-impacting issue (no access, major failure, urgent assistance)

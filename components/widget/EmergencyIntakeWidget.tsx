@@ -47,6 +47,16 @@ export default function EmergencyIntakeWidget({
     backgroundColor: accentColor,
   };
 
+  const activeOptionStyle = {
+    borderColor: accentColor,
+    backgroundColor: `${accentColor}14`,
+    color: accentColor,
+  };
+
+  const activeIconStyle = {
+    color: accentColor,
+  };
+
   const [message, setMessage] = useState("");
 
   const [vehicleType, setVehicleType] = useState("car");
@@ -98,10 +108,10 @@ export default function EmergencyIntakeWidget({
       });
 
       if (!res.ok) {
-  const errorData = await res.json().catch(() => null);
-  console.error("Emergency intake API error:", errorData);
-  throw new Error(errorData?.error || "Request failed");
-}
+        const errorData = await res.json().catch(() => null);
+        console.error("Emergency intake API error:", errorData);
+        throw new Error(errorData?.error || "Request failed");
+      }
 
       const data: IntakeResponse = await res.json();
 
@@ -167,13 +177,15 @@ Precise GPS location could not be detected. If possible, please share your locat
           maximumAge: 0,
         }
       );
-   } catch (err) {
-  console.error("Emergency intake submit failed:", err);
+    } catch (err) {
+      console.error("Emergency intake submit failed:", err);
 
-  setError(
-    err instanceof Error ? err.message : "Something went wrong. Please try again."
-  );
-} finally {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
       setLoading(false);
     }
   };
@@ -267,13 +279,17 @@ Precise GPS location could not be detected. If possible, please share your locat
                       key={option.value}
                       type="button"
                       onClick={() => setVehicleType(option.value)}
+                      style={isActive ? activeOptionStyle : undefined}
                       className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                         isActive
-                          ? "border-zinc-900 bg-zinc-50 text-zinc-900"
+                          ? ""
                           : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100"
                       }`}
                     >
-                      <Icon size={18} />
+                      <Icon
+                        size={18}
+                        style={isActive ? activeIconStyle : undefined}
+                      />
                       <span className="text-sm font-medium">
                         {option.label}
                       </span>
