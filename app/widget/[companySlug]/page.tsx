@@ -1,10 +1,16 @@
 import EmergencyIntakeWidget from "@/components/widget/EmergencyIntakeWidget";
-import { getWidgetConfigBySlug, widgetConfigs } from "@/lib/widget-config";
+import {
+  getWidgetConfigBySlug,
+  widgetConfigs,
+} from "@/lib/widget-config";
 import { notFound } from "next/navigation";
 
 type WidgetCompanyPageProps = {
   params: Promise<{
     companySlug: string;
+  }>;
+  searchParams: Promise<{
+    embed?: string;
   }>;
 };
 
@@ -16,12 +22,25 @@ export async function generateStaticParams() {
 
 export default async function WidgetCompanyPage({
   params,
+  searchParams,
 }: WidgetCompanyPageProps) {
   const { companySlug } = await params;
+  const { embed } = await searchParams;
+
   const config = getWidgetConfigBySlug(companySlug);
 
   if (!config) {
     notFound();
+  }
+
+  const isEmbed = embed === "true";
+
+  if (isEmbed) {
+    return (
+      <main className="min-h-screen bg-white p-0 text-zinc-900">
+        <EmergencyIntakeWidget config={config} />
+      </main>
+    );
   }
 
   return (

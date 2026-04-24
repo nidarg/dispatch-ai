@@ -1,5 +1,7 @@
 import IntakeList from "@/components/dashboard/IntakeList";
+import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
 import { getIntakesByCompany } from "@/lib/dashboard/intakes";
+import { requireTenantAccess } from "@/lib/auth/require-tenant-access";
 import { notFound } from "next/navigation";
 
 type PageProps = {
@@ -15,6 +17,8 @@ export default async function TenantIntakesPage({ params }: PageProps) {
     notFound();
   }
 
+  const result = await requireTenantAccess(companySlug);
+
   try {
     const intakes = await getIntakesByCompany(companySlug, 50);
 
@@ -28,6 +32,13 @@ export default async function TenantIntakesPage({ params }: PageProps) {
           <p className="mt-2 text-zinc-600">
             Latest intake requests for this tenant.
           </p>
+
+          <div className="mt-6">
+            <DashboardUserBar
+              email={result.user.email ?? "Unknown user"}
+              tenantLabel={result.membership.company_slug}
+            />
+          </div>
 
           <div className="mt-8">
             <IntakeList

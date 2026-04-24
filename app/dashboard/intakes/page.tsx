@@ -1,7 +1,24 @@
+import { redirect } from "next/navigation";
 import IntakeList from "@/components/dashboard/IntakeList";
+import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
 import { getLatestIntakes } from "@/lib/dashboard/intakes";
+import { getCurrentUserTenant } from "@/lib/auth/get-user-tenant";
 
 export default async function DashboardIntakesPage() {
+  const result = await getCurrentUserTenant();
+
+  if (result.status === "no-user") {
+    redirect("/login");
+  }
+
+  if (result.status === "no-membership") {
+    redirect("/unauthorized");
+  }
+
+  if (result.membership.role !== "admin") {
+    redirect("/unauthorized");
+  }
+
   try {
     const intakes = await getLatestIntakes(50);
 
@@ -15,6 +32,13 @@ export default async function DashboardIntakesPage() {
           <p className="mt-2 text-zinc-600">
             Latest intake requests from all tenants.
           </p>
+
+          <div className="mt-6">
+            <DashboardUserBar
+              email={result.user.email ?? "Unknown user"}
+              tenantLabel="Platform Admin"
+            />
+          </div>
 
           <div className="mt-8">
             <IntakeList intakes={intakes} />
