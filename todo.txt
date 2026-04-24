@@ -1,0 +1,260 @@
+Da, corect este să rezolvăm acum infrastructura de email, nu să tot lovim rate limit-ul. Facem întâi SMTP custom în Supabase, apoi revenim la invite user + membership UI.
+
+Thought for a few seconds
+
+Da. Corect acum este:
+
+1. Configurezi Custom SMTP în Supabase
+
+Supabase spune clar că emailurile built-in sunt limitate și pentru producție trebuie SMTP propriu. Built-in email are limite stricte, iar unele limite pot fi schimbate doar după ce activezi Custom SMTP.
+
+Recomandare simplă: Resend sau Postmark.
+Pentru tine aș alege Resend, fiind cel mai rapid de pus.
+
+Pașii concreți
+A. În Resend
+Creezi cont.
+Adaugi domeniul tău.
+Configurezi DNS records:
+SPF
+DKIM
+DMARC, dacă îți cere
+Creezi SMTP credentials.
+
+Ai nevoie de:
+
+SMTP host
+SMTP port
+SMTP username
+SMTP password
+Sender email
+Sender name
+
+Exemplu:
+
+Sender email: no-reply@domeniul-tau.com
+Sender name: Dispatch AI
+
+Ideal, nu folosi @yahoo.com. Folosește un domeniu propriu.
+
+B. În Supabase
+
+Mergi la:
+
+Supabase Dashboard
+→ Authentication
+→ Emails / SMTP Settings
+→ Enable Custom SMTP
+
+Completezi:
+
+Host
+Port
+Username
+Password
+Sender email
+Sender name
+
+După salvare, Supabase Auth va trimite magic link / invite / recovery email prin SMTP-ul tău. Supabase menționează că după custom SMTP există default o limită de 30 mesaje/oră, ajustabilă din Rate Limits.
+
+2. Configurezi Rate Limits după SMTP
+
+După ce SMTP e activ:
+
+Authentication → Rate Limits
+
+Verifici / ajustezi:
+
+Email sent
+OTP
+Invite/signup limits
+
+Nu pune valori uriașe. Pentru început:
+
+Email sent: 30-60/hour
+OTP: 30/hour
+
+Mai târziu ajustezi.
+
+3. Fixăm Admin UI să invite userul
+
+După SMTP, modificăm API-ul memberships ca să facă flow-ul corect:
+
+admin introduce email
+↓
+dacă userul există → creează membership
+↓
+dacă userul nu există → trimite invite email
+↓
+creează membership automat
+
+Asta se face cu:
+
+supabaseAdmin.auth.admin.inviteUserByEmail(...)
+
+Metoda Supabase trimite email de invite către user.
+
+4. De ce asta rezolvă problema ta
+
+Acum ai două blocaje:
+
+magic link rate limit
+
+și
+
+userul trebuie să existe înainte de membership
+
+Custom SMTP rezolvă primul.
+
+inviteUserByEmail rezolvă al doilea.
+
+Ordinea corectă
+Configurezi Resend/Postmark SMTP.
+Testezi un magic link normal.
+Modificăm API-ul admin memberships cu invite.
+Testezi adăugarea unui operator nou din UI.
+Operatorul primește invite, intră, și ajunge în dashboard Pedrotti.
+
+Asta este soluția corectă pentru produs real.
+
+Vercel free nu îți oferă automat email/domain pentru trimitere mail.
+Deployment URL-ul:
+https://multilingual-dispatch-flow.vercel.app
+NU înseamnă că poți trimite mail din:
+no-reply@multilingual-dispatch-flow.vercel.app
+Asta nu funcționează.
+
+Ce opțiuni ai acum
+Varianta recomandată (corectă)
+Cumperi un domeniu propriu:
+Exemple:
+
+
+dispatchflow.ai
+
+
+dispatchflow.app
+
+
+dispatchflow.io
+
+
+dispatch-ai.com
+
+
+multilingualdispatch.com
+
+
+Cost:
+aprox.
+10–20€/an
+(depinde de TLD)
+Apoi folosești:
+no-reply@dispatchflow.appadmin@dispatchflow.appsupport@dispatchflow.app
+Aceasta este varianta profesională.
+
+Varianta temporară (pentru MVP)
+Poți folosi un domeniu deja existent pe care îl controlezi.
+Exemplu:
+dacă ai:
+mycompany.ro
+poți folosi:
+no-reply@mycompany.ro
+și configurezi SMTP acolo.
+
+Ce NU recomand
+Să folosești:
+@yahoo.com@gmail.com@outlook.com
+pentru SMTP de produs.
+Probleme:
+
+
+deliverability slabă
+
+
+invite emails pot ajunge în spam
+
+
+branding foarte slab
+
+
+greu de scalat
+
+
+Pentru testing merge, pentru produs nu.
+
+Pentru faza actuală
+Eu aș face:
+Pasul corect:
+cumperi domeniu propriu acum
+pentru că:
+tu deja ai:
+
+
+SaaS
+
+
+multi-tenant
+
+
+auth
+
+
+dashboard
+
+
+widget embed
+
+
+production deployment
+
+
+deja ai depășit nivelul unde merită să amâni asta.
+Acum are sens.
+
+Recomandarea mea
+Nume mai bune decât:
+multilingual-dispatch-flow
+ar fi:
+
+
+dispatchflow.app
+
+
+dispatchflow.ai
+
+
+dispatchops.com
+
+
+multilingualdispatch.com
+
+
+dispatchbridge.com
+
+
+dispatchlayer.com
+
+
+Eu personal aș alege:
+dispatchflow.app
+foarte bun pentru SaaS.
+
+Important
+Domeniul îl folosești pentru:
+1. App URL
+app.dispatchflow.app
+sau
+dispatchflow.app
+2. SMTP sender
+no-reply@dispatchflow.app
+3. Branding
+mult mai serios decât:
+multilingual-dispatch-flow.vercel.app
+
+Concluzia sinceră
+Da, poți continua temporar fără domeniu.
+Dar:
+pentru auth + invite + SMTP + SaaS real
+domeniul propriu devine obligatoriu
+nu opțional.

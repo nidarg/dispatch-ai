@@ -1,9 +1,8 @@
 import EmergencyIntakeWidget from "@/components/widget/EmergencyIntakeWidget";
-import {
-  getWidgetConfigBySlug,
-  widgetConfigs,
-} from "@/lib/widget-config";
+import { getWidgetConfigBySlug } from "@/lib/widget-config";
 import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 type WidgetCompanyPageProps = {
   params: Promise<{
@@ -14,12 +13,6 @@ type WidgetCompanyPageProps = {
   }>;
 };
 
-export async function generateStaticParams() {
-  return widgetConfigs.map((config) => ({
-    companySlug: config.slug,
-  }));
-}
-
 export default async function WidgetCompanyPage({
   params,
   searchParams,
@@ -27,7 +20,7 @@ export default async function WidgetCompanyPage({
   const { companySlug } = await params;
   const { embed } = await searchParams;
 
-  const config = getWidgetConfigBySlug(companySlug);
+  const config = await getWidgetConfigBySlug(companySlug);
 
   if (!config) {
     notFound();

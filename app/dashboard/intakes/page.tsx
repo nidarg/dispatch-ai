@@ -59,6 +59,16 @@ export default async function DashboardIntakesPage() {
         Add users to tenants and assign platform roles.
       </div>
     </Link>
+    <Link
+  href="/dashboard/admin/tenant-settings"
+  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:bg-zinc-50"
+>
+  <div className="font-semibold text-zinc-900">Tenant settings</div>
+
+  <div className="mt-2 text-sm text-zinc-600">
+    Configure company name, WhatsApp number, use case and widget behavior.
+  </div>
+</Link>
   </div>
 </div>
 
