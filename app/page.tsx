@@ -1,6 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUserTenant } from "@/lib/auth/get-user-tenant";
 
-export default function HomePage() {
+export default async function HomePage() {
+   const result = await getCurrentUserTenant();
+
+  if (result.status === "no-user") {
+    redirect("/login");
+  }
+
+  if (result.status === "no-membership") {
+    redirect("/unauthorized");
+  }
+    
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-16 text-zinc-900">
       <div className="mx-auto max-w-5xl">
