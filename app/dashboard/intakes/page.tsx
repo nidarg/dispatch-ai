@@ -1,3 +1,5 @@
+
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import IntakeList from "@/components/dashboard/IntakeList";
 import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
@@ -39,6 +41,26 @@ export default async function DashboardIntakesPage() {
               tenantLabel="Platform Admin"
             />
           </div>
+          <div className="mt-8">
+  <h2 className="text-lg font-semibold text-zinc-900">
+    Admin tools
+  </h2>
+
+  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <Link
+      href="/dashboard/admin/memberships"
+      className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:bg-zinc-50"
+    >
+      <div className="font-semibold text-zinc-900">
+        Manage memberships
+      </div>
+
+      <div className="mt-2 text-sm text-zinc-600">
+        Add users to tenants and assign platform roles.
+      </div>
+    </Link>
+  </div>
+</div>
 
           <div className="mt-8">
             <IntakeList intakes={intakes} />

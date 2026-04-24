@@ -10,6 +10,9 @@ export type IntakeRow = {
   priority: "low" | "normal" | "high";
   payload: Record<string, unknown>;
   created_at: string;
+  status: "new" | "in_progress" | "resolved";
+  updated_at: string | null;
+  resolved_at: string | null;
 };
 
 export async function getLatestIntakes(limit = 50): Promise<IntakeRow[]> {

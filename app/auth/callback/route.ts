@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   // 🔥 ia tenantul
   const { data } = await supabaseAdmin
     .from("tenant_memberships")
-    .select("company_slug")
+    .select("company_slug, role")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
   if (!data) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
+
+  if (data.role === "admin") {
+  return NextResponse.redirect(new URL("/dashboard/intakes", req.url));
+}
 
   // 🔥 redirect direct în tenant
   return NextResponse.redirect(

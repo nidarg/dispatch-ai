@@ -69,7 +69,21 @@ export default function EmergencyIntakeWidget({
   const [urgency, setUrgency] = useState("normal");
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState("")
+  
+  const handleClose = () => {
+  if (onClose) {
+    onClose();
+    return;
+  }
+
+  if (typeof window !== "undefined" && window.parent !== window) {
+    window.parent.postMessage(
+      { type: "dispatch-ai-close-widget" },
+      "*"
+    );
+  }
+};;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -230,16 +244,14 @@ Precise GPS location could not be detected. If possible, please share your locat
           </p>
         </div>
 
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
-            aria-label="Close widget"
-          >
-            <X size={18} />
-          </button>
-        ) : null}
+        <button
+  type="button"
+  onClick={handleClose}
+  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-100"
+  aria-label="Close widget"
+>
+  <X size={18} />
+</button>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
