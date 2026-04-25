@@ -4,11 +4,13 @@ import IntakeCard from "./IntakeCard";
 type IntakeListProps = {
   intakes: IntakeRow[];
   emptyMessage?: string;
+  canManageStatus?: boolean;
 };
 
 export default function IntakeList({
   intakes,
   emptyMessage = "No intakes yet.",
+  canManageStatus = true,
 }: IntakeListProps) {
   if (intakes.length === 0) {
     return (
@@ -21,7 +23,11 @@ export default function IntakeList({
   return (
     <div className="space-y-4">
       {intakes.map((intake) => (
-        <IntakeCard key={intake.id} intake={intake} />
+        <IntakeCard
+          key={intake.id}
+          intake={intake}
+          canManageStatus={canManageStatus}
+        />
       ))}
     </div>
   );

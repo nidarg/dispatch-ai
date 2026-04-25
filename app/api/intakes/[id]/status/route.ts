@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getCurrentPlatformAdmin } from "@/lib/auth/get-platform-admin";
+import { getCurrentUserTenant } from "@/lib/auth/get-user-tenant";
+
+const allowedStatuses = ["new", "in_progress", "resolved"] as const;
+type IntakeStatus = (typeof allowedStatuses)[number];
+
+function isValidStatus(value: unknown): value is IntakeStatus {
+  return (
+    typeof value === "string" &&
+    allowedStatuses.includes(value as IntakeStatus)
+  );
+}
 
 export async function PATCH(
   req: Request,
@@ -10,11 +22,47 @@ export async function PATCH(
 
   const status = body.status;
 
-  if (!["new", "in_progress", "resolved"].includes(status)) {
+  if (!isValidStatus(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const intakeId = Number(id);
+
+  if (!Number.isInteger(intakeId)) {
+    return NextResponse.json({ error: "Invalid intake id" }, { status: 400 });
+  }
+
+  const platformAdmin = await getCurrentPlatformAdmin();
+
+  const tenantResult = await getCurrentUserTenant();
+
+  const { data: intake, error: intakeError } = await supabaseAdmin
+    .from("emergency_intakes")
+    .select("id, company_slug")
+    .eq("id", intakeId)
+    .maybeSingle();
+
+  if (intakeError) {
     return NextResponse.json(
-      { error: "Invalid status" },
-      { status: 400 }
+      { error: "Failed to load intake" },
+      { status: 500 }
     );
+  }
+
+  if (!intake) {
+    return NextResponse.json({ error: "Intake not found" }, { status: 404 });
+  }
+
+  const isPlatformAdmin = platformAdmin.status === "ok";
+
+  const canTenantUserUpdate =
+    tenantResult.status === "ok" &&
+    tenantResult.membership.company_slug === intake.company_slug &&
+    (tenantResult.membership.role === "manager" ||
+      tenantResult.membership.role === "operator");
+
+  if (!isPlatformAdmin && !canTenantUserUpdate) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   const update: Record<string, unknown> = {
@@ -26,10 +74,14 @@ export async function PATCH(
     update.resolved_at = new Date().toISOString();
   }
 
+  if (status !== "resolved") {
+    update.resolved_at = null;
+  }
+
   const { error } = await supabaseAdmin
     .from("emergency_intakes")
     .update(update)
-    .eq("id", id);
+    .eq("id", intakeId);
 
   if (error) {
     return NextResponse.json(

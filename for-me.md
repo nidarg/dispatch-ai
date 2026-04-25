@@ -5378,3 +5378,813 @@ Operator management
 
 Analytics
 
+32. Schimbare importantă: trecere la model enterprise de roluri
+După discuția despre roluri, s-a decis că modelul inițial nu era suficient de curat.
+Inițial, tenant_memberships.role conținea inclusiv:
+adminmanageroperatorreadonly
+Problema era că admin era folosit cu două sensuri diferite:
+admin al platformei Dispatch AI
+și
+admin / manager al unui client, de exemplu Pedrotti
+Asta nu este ideal pentru un SaaS multi-tenant.
+
+Decizia luată
+S-a trecut la model enterprise cu două niveluri separate:
+platform_admins
+și
+tenant_memberships
+
+33. Tabela platform_admins
+Această tabelă este pentru tine / echipa Dispatch AI.
+Ea controlează cine are acces global la platformă.
+SQL:
+create table platform_admins (  id bigserial primary key,  user_id uuid not null unique,  role text not null check (    role in ('owner', 'admin', 'support')  ),  created_at timestamptz not null default now());
+Exemplu:
+{  "user_id": "48ca461e-bf47-4273-80f7-75020e578c90",  "role": "owner"}
+
+Rolul acestei tabele
+Un user din platform_admins poate avea acces la:
+
+
+dashboard global
+
+
+toate intake-urile
+
+
+tenant settings
+
+
+membership management
+
+
+widget configuration viitor
+
+
+analytics globale viitoare
+
+
+suport tehnic pentru clienți
+
+
+Acest user nu este „manager Pedrotti”.
+Este:
+platform owner / platform admin
+
+34. Tabela tenant_memberships după separare
+Această tabelă rămâne pentru clienți.
+Ea spune:
+ce user aparține cărui tenant și cu ce rol
+Exemplu:
+{  "user_id": "48ca461e-bf47-4273-80f7-75020e578c90",  "company_slug": "pedrotti",  "role": "manager"}
+
+Roluri permise acum în tenant_memberships
+După separare, tenant_memberships nu mai trebuie să folosească admin.
+Rolurile corecte sunt:
+manageroperatorreadonly
+
+Diferența clară
+platform_admins.role = owner/admin/support
+înseamnă acces la platforma Dispatch AI.
+tenant_memberships.role = manager/operator/readonly
+înseamnă acces la un tenant concret, cum ar fi Pedrotti.
+
+35. Userul tău poate exista în ambele tabele
+S-a clarificat că este perfect posibil ca același user_id să existe în ambele tabele.
+Exemplu:
+platform_admins:gradin_g@yahoo.com → owner
+și:
+tenant_memberships:gradin_g@yahoo.com → pedrotti → manager
+Asta înseamnă:
+
+
+ai acces global ca owner al platformei
+
+
+ai și acces tenant Pedrotti, dacă vrei să testezi experiența tenantului
+
+
+Dar cele două accesuri sunt conceptual diferite.
+
+36. Helper nou: getCurrentPlatformAdmin
+A fost introdus conceptul de helper separat pentru platform admin.
+Fișier:
+lib/auth/get-platform-admin.ts
+Cod:
+import { getCurrentUser } from "./get-user";import { supabaseAdmin } from "@/lib/supabase";export async function getCurrentPlatformAdmin() {  const user = await getCurrentUser();  if (!user) {    return {      status: "no-user" as const,    };  }  const { data, error } = await supabaseAdmin    .from("platform_admins")    .select("role")    .eq("user_id", user.id)    .maybeSingle();  if (error) {    throw error;  }  if (!data) {    return {      status: "not-platform-admin" as const,      user,    };  }  return {    status: "ok" as const,    user,    platformAdmin: data,  };}
+
+Ce face acest helper
+Acest helper răspunde la întrebarea:
+userul logat este admin al platformei Dispatch AI?
+Nu răspunde la întrebarea:
+userul are acces la tenantul Pedrotti?
+Aceasta este o separare importantă.
+
+Cazurile tratate
+1. User nelogat
+status: "no-user"
+Asta înseamnă redirect la:
+/login
+
+2. User logat, dar nu este platform admin
+status: "not-platform-admin"
+Exemplu:
+manager Pedrotti
+Acest user nu poate vedea dashboard global.
+
+3. User logat și platform admin
+status: "ok"
+Exemplu:
+tu ca owner Dispatch AI
+Acest user poate vedea zona globală.
+
+37. Refactor requirePlatformAdmin
+Fișier:
+lib/auth/require-platform-admin.ts
+Cod:
+import { redirect } from "next/navigation";import { getCurrentPlatformAdmin } from "./get-platform-admin";export async function requirePlatformAdmin() {  const result = await getCurrentPlatformAdmin();  if (result.status === "no-user") {    redirect("/login");  }  if (result.status === "not-platform-admin") {    redirect("/unauthorized");  }  return result;}
+
+Rol
+Acest helper protejează toate paginile globale ale platformei.
+Exemple:
+/dashboard/intakes/dashboard/admin/memberships/dashboard/admin/tenant-settings/dashboard/admin/analytics
+
+Ce NU protejează
+Nu este folosit pentru dashboard tenant-scoped:
+/dashboard/pedrotti/intakes
+Acolo rămâne corect:
+requireTenantAccess(companySlug)
+
+38. Refactor flow login în auth/callback
+După modelul enterprise, callback-ul de auth trebuie să decidă între două tipuri de acces:
+platform admin
+sau
+tenant member
+
+Flow nou
+user apasă magic link↓/auth/callback primește code↓exchangeCodeForSession(code)↓getUser()↓verifică platform_admins↓dacă există → /dashboard/intakes↓dacă nu există → verifică tenant_memberships↓dacă există → /dashboard/[companySlug]/intakes↓dacă nu există → /unauthorized
+
+Cod relevant
+const { data: platformAdmin } = await supabaseAdmin  .from("platform_admins")  .select("role")  .eq("user_id", user.id)  .maybeSingle();if (platformAdmin) {  return NextResponse.redirect(    new URL("/dashboard/intakes", req.url)  );}
+Asta înseamnă:
+dacă userul este owner/admin/support al platformei, merge în dashboard global
+Apoi:
+const { data: membership } = await supabaseAdmin  .from("tenant_memberships")  .select("company_slug, role")  .eq("user_id", user.id)  .limit(1)  .maybeSingle();if (!membership) {  return NextResponse.redirect(    new URL("/unauthorized", req.url)  );}
+Dacă nu este platform admin, se caută membership tenant.
+Dacă există:
+return NextResponse.redirect(  new URL(    `/dashboard/${membership.company_slug}/intakes`,    req.url  ));
+
+Importanță
+Această logică face separarea completă:
+tu ca platform owner → dashboard globalPedrotti manager → dashboard PedrottiPedrotti operator → dashboard Pedrottiuser fără acces → unauthorized
+
+39. Refactor /dashboard/intakes
+Dashboardul global nu mai trebuie să folosească tenant_memberships.role === admin.
+Acum trebuie să folosească:
+requirePlatformAdmin()
+
+Rolul paginii
+Ruta:
+/dashboard/intakes
+este acum:
+Platform Admin Dashboard
+Nu este dashboard de client.
+
+Ce vede platform admin-ul
+
+
+toate intake-urile din toate tenanturile
+
+
+admin tools
+
+
+manage memberships
+
+
+tenant settings
+
+
+viitor analytics
+
+
+viitor widget config
+
+
+
+Cod relevant
+const result = await requirePlatformAdmin();
+Asta blochează orice user care nu există în platform_admins.
+
+User bar
+În dashboard global, DashboardUserBar primește:
+<DashboardUserBar  email={result.user.email ?? "Unknown user"}  tenantLabel={`Platform ${result.platformAdmin.role}`}/>
+Exemplu afișare:
+gradin_g@yahoo.comTenant: Platform owner
+Deși textul spune Tenant, conceptual aici este mai degrabă contextul curent. Mai târziu ar fi bine ca DashboardUserBar să fie redenumit sau extins cu contextLabel.
+
+40. Admin tools în dashboard global
+În /dashboard/intakes a fost adăugată secțiunea:
+Admin tools
+Cu linkuri către:
+/dashboard/admin/memberships/dashboard/admin/tenant-settings
+
+De ce este important
+Nu mai trebuie să ții minte rute manual.
+Flow corect:
+login ca platform owner↓/dashboard/intakes↓Admin tools↓Manage memberships / Tenant settings
+
+41. Problema descoperită la memberships API după separarea enterprise
+După trecerea la platform_admins, pagina UI afișa corect:
+gradin_g@yahoo.comTenant: Platform Admin
+Dar când încercai să creezi membership pentru Gmail, API-ul răspundea:
+Unauthorized
+
+Cauza
+UI-ul era protejat corect cu requirePlatformAdmin.
+Dar API-ul:
+app/api/admin/tenant-memberships/route.ts
+încă folosea vechea logică:
+getCurrentUserTenant()
+și verifica:
+tenant_memberships.role === admin
+Dar în noua arhitectură:
+admin nu mai există în tenant_memberships
+De aceea API-ul refuza requestul.
+
+Fix corect
+În API-ul de memberships trebuie folosit:
+getCurrentPlatformAdmin()
+nu:
+getCurrentUserTenant()
+Conceptual:
+async function requireAdminApi() {  const current = await getCurrentPlatformAdmin();  if (current.status !== "ok") {    return null;  }  return current;}
+Apoi în GET și POST:
+const admin = await requireAdminApi();if (!admin) {  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });}
+
+42. Membership management: problemă cu userii inexistenți
+Inițial, admin UI pentru memberships cerea ca userul să fi fost logat măcar o dată.
+Motivul era că membership-ul se creează pe baza:
+user_id
+nu pe email.
+Dacă userul nu exista în Supabase Auth, nu aveam user_id.
+
+Limitarea inițială
+Flow vechi:
+admin introduce email↓API caută user în Supabase Auth↓dacă userul există → creează membership↓dacă nu există → eroare:"The user must log in once first."
+
+De ce nu e ideal
+Pentru un SaaS real, clientul nu trebuie să știe acest detaliu tehnic.
+Adminul ar trebui să poată adăuga un operator direct din UI.
+
+43. Decizia: folosim inviteUserByEmail
+S-a decis să implementăm logica corectă:
+admin introduce email + tenant + role↓dacă userul există deja în Supabase Auth → creează membership↓dacă userul nu există → trimite invite email prin Supabase↓Supabase creează userul↓API creează membership pentru user_id-ul nou
+
+Metoda folosită
+supabaseAdmin.auth.admin.inviteUserByEmail(email, {  redirectTo: `${appUrl}/auth/callback`,});
+
+Avantaj
+Adminul poate invita useri fără ca aceștia să fi făcut login înainte.
+
+Limitare temporară
+Pentru că încă nu există SMTP custom pe domeniu propriu, invite email poate lovi în continuare:
+email rate limit exceeded
+Dar codul este corect și va rămâne valabil și după configurarea SMTP.
+
+44. Rate limit email și SMTP
+A apărut eroarea:
+email rate limit exceeded
+Aceasta vine de la Supabase Auth.
+
+Cauza
+Emailurile default Supabase sunt bune pentru development, dar au limitări stricte.
+Magic links și invite emails consumă din aceleași limite de email.
+
+Soluție corectă pe termen lung
+Configurare custom SMTP cu un provider precum:
+
+
+Resend
+
+
+Postmark
+
+
+SendGrid
+
+
+Mailgun
+
+
+
+De ce nu s-a făcut încă
+Momentan proiectul este pe domeniu Vercel:
+https://multilingual-dispatch-flow.vercel.app
+Nu există încă domeniu propriu.
+Iar pentru SMTP profesional ai nevoie de domeniu propriu, de exemplu:
+dispatchflow.app
+ca să poți trimite email de la:
+no-reply@dispatchflow.app
+
+Decizia luată
+S-a decis să amânăm configurarea SMTP până la cumpărarea unui domeniu propriu.
+Între timp, codul pentru invite user poate fi implementat, dar testarea trebuie făcută cu atenție pentru a nu lovi rate limit-ul.
+
+45. Tenant settings: mutarea configului din cod în DB
+După finalizarea widget embed, următorul pas a fost mutarea configurației tenantului din cod în DB.
+Inițial exista:
+lib/widget-config.ts
+cu:
+export const widgetConfigs: WidgetConfig[] = [  {    slug: "pedrotti",    companyName: "Pedrotti",    whatsappNumber: "40755741335",    operatorLanguage: "Italian",    accentColor: "#dc2626",    useCase: "roadside",    enableLocation: true,  },  ...];
+
+Limitarea configurației statice
+Pentru fiecare tenant nou trebuia:
+modificare cod↓git push↓redeploy
+Asta nu este SaaS real.
+
+46. Tabela tenant_settings
+S-a introdus tabela:
+tenant_settings
+SQL:
+create table tenant_settings (  id bigserial primary key,  company_slug text not null unique,  company_name text not null,  whatsapp_number text not null,  operator_language text not null default 'English',  accent_color text,  use_case text not null check (    use_case in ('roadside', 'hotel')  ),  enable_location boolean not null default false,  created_at timestamptz not null default now());
+
+Rolul fiecărui câmp
+company_slug
+Identificatorul tenantului.
+Este folosit în rute:
+/widget/pedrotti/dashboard/pedrotti/intakes
+și în embed script:
+data-company="pedrotti"
+
+company_name
+Numele vizibil în UI.
+Exemplu:
+Pedrotti
+
+whatsapp_number
+Numărul către care se deschide WhatsApp.
+Format recomandat:
+40755741335
+fără +.
+
+operator_language
+Limba operatorului.
+Momentan este păstrată ca metadata.
+Mai târziu poate influența traduceri outbound/inbound.
+
+accent_color
+Culoarea de brand pentru widget.
+Exemplu:
+#dc2626
+
+use_case
+Controlează workflow-ul formularului.
+Valori:
+roadsidehotel
+
+enable_location
+Controlează dacă widgetul cere geolocation.
+Pentru roadside:
+true
+Pentru hotel:
+false
+
+47. Seed pentru tenant_settings
+Datele existente au fost migrate conceptual în DB:
+insert into tenant_settings (  company_slug,  company_name,  whatsapp_number,  operator_language,  accent_color,  use_case,  enable_location)values(  'pedrotti',  'Pedrotti',  '40755741335',  'Italian',  '#dc2626',  'roadside',  true),(  'hotel-lago',  'Hotel Lago',  '40755741335',  'Italian',  '#2563eb',  'hotel',  false);
+
+48. Refactor getWidgetConfigBySlug
+Inițial:
+export function getWidgetConfigBySlug(slug: string) {  return widgetConfigs.find((config) => config.slug === slug);}
+
+Noua direcție
+Funcția devine async și caută întâi în DB:
+tenant_settings
+Dacă nu găsește nimic, folosește fallback static.
+
+De ce păstrăm fallback temporar
+Pentru siguranță.
+Dacă DB query eșuează sau tenantul nu există încă în DB, aplicația poate folosi în continuare widgetConfigs.
+Este o tranziție safe.
+
+Cod conceptual
+export async function getWidgetConfigBySlug(  slug: string): Promise<WidgetConfig | undefined> {  const cleanSlug = slug.trim();  const { data, error } = await supabaseAdmin    .from("tenant_settings")    .select(      "company_slug, company_name, whatsapp_number, operator_language, accent_color, use_case, enable_location"    )    .eq("company_slug", cleanSlug)    .maybeSingle();  if (error) {    console.error("Failed to load tenant settings:", error);  }  if (data) {    return mapTenantSettingsToWidgetConfig(data as TenantSettingsRow);  }  return widgetConfigs.find((config) => config.slug === cleanSlug);}
+
+Maparea DB → WidgetConfig
+DB folosește snake_case:
+company_slugcompany_namewhatsapp_number
+Dar aplicația folosește camelCase:
+slugcompanyNamewhatsappNumber
+De aceea există o funcție de mapare:
+function mapTenantSettingsToWidgetConfig(  row: TenantSettingsRow): WidgetConfig {  return {    slug: row.company_slug,    companyName: row.company_name,    whatsappNumber: row.whatsapp_number,    operatorLanguage: row.operator_language,    accentColor: row.accent_color ?? undefined,    useCase: row.use_case,    enableLocation: row.enable_location,  };}
+
+49. app/widget/[companySlug]/page.tsx devine complet dinamic
+Pentru că tenanturile vin din DB, nu mai are sens:
+generateStaticParams()
+Inițial, pagina putea fi static generată doar pentru tenanturile din widgetConfigs.
+Dar acum un tenant poate fi creat în DB fără redeploy.
+
+Modificare făcută
+S-a scos:
+export async function generateStaticParams() {  return widgetConfigs.map((config) => ({    companySlug: config.slug,  }));}
+și s-a adăugat:
+export const dynamic = "force-dynamic";
+
+De ce este important
+Acum ruta:
+/widget/noul-tenant
+poate funcționa imediat după ce tenantul este creat în DB.
+Fără redeploy.
+
+Flow nou
+request /widget/pedrotti↓Next.js rulează server-side↓getWidgetConfigBySlug("pedrotti")↓query tenant_settings↓render widget
+
+50. Admin UI pentru tenant_settings
+După mutarea configului în DB, s-a creat planul și codul pentru UI de administrare:
+/dashboard/admin/tenant-settings
+
+Scop
+Platform admin-ul poate configura tenantul fără să modifice codul.
+Poate seta:
+
+
+company slug
+
+
+company name
+
+
+WhatsApp number
+
+
+operator language
+
+
+accent color
+
+
+use case
+
+
+geolocation on/off
+
+
+
+51. API pentru tenant settings
+Fișier:
+app/api/admin/tenant-settings/route.ts
+
+GET
+Listează toate tenant settings.
+Protejat cu platform admin.
+Flow:
+request GET /api/admin/tenant-settings↓verifică platform admin↓query tenant_settings↓return tenants
+
+POST
+Creează sau actualizează un tenant.
+Primește:
+{  "companySlug": "pedrotti",  "companyName": "Pedrotti",  "whatsappNumber": "40755741335",  "operatorLanguage": "Italian",  "accentColor": "#dc2626",  "useCase": "roadside",  "enableLocation": true}
+Face:
+validare input↓upsert după company_slug↓return tenant
+
+De ce upsert
+Pentru că același formular servește atât pentru creare, cât și pentru update.
+Dacă company_slug există deja:
+update
+Dacă nu există:
+insert
+
+52. Pagina dashboard/admin/tenant-settings
+Fișier:
+app/dashboard/admin/tenant-settings/page.tsx
+Rol:
+
+
+protejează pagina cu requirePlatformAdmin
+
+
+afișează user bar
+
+
+încarcă componenta client TenantSettingsAdmin
+
+
+
+Flow
+platform admin intră pe /dashboard/admin/tenant-settings↓requirePlatformAdmin()↓dacă ok → render page↓TenantSettingsAdmin se ocupă de listă + formular
+
+53. Componenta TenantSettingsAdmin
+Fișier:
+components/admin/TenantSettingsAdmin.tsx
+Este client component.
+
+State principal
+const [tenants, setTenants] = useState<TenantSetting[]>([]);const [companySlug, setCompanySlug] = useState("");const [companyName, setCompanyName] = useState("");const [whatsappNumber, setWhatsappNumber] = useState("");const [operatorLanguage, setOperatorLanguage] = useState("Italian");const [accentColor, setAccentColor] = useState("#dc2626");const [useCase, setUseCase] = useState<"roadside" | "hotel">("roadside");const [enableLocation, setEnableLocation] = useState(true);
+
+Ce face
+1. Listează tenant settings existente
+Prin:
+fetch("/api/admin/tenant-settings")
+
+2. Permite editarea unui tenant
+Când apeși pe un tenant din listă:
+editTenant(tenant)
+formularul se precompletează.
+
+3. Permite creare/update
+La submit:
+fetch("/api/admin/tenant-settings", {  method: "POST",  body: JSON.stringify(...)})
+
+De ce este important
+Acum configurarea widgetului nu mai depinde de cod.
+Platform admin-ul poate schimba rapid:
+
+
+numărul WhatsApp
+
+
+culoarea
+
+
+tipul de workflow
+
+
+geolocation
+
+
+
+54. Link către Tenant Settings în Admin tools
+În dashboardul global s-a adăugat link spre:
+/dashboard/admin/tenant-settings
+Alături de:
+/dashboard/admin/memberships
+
+Admin tools actuale
+Manage membershipsTenant settings
+
+Admin tools viitoare
+Widget configAnalyticsOperator management
+
+55. Clarificare despre Pedrotti site vs Dispatch AI dashboard
+A existat o confuzie importantă:
+Dacă widgetul este embedat pe site-ul Pedrotti, de ce nu apare și dashboardul acolo?
+Răspuns:
+nu trebuie să apară dashboardul pe site-ul Pedrotti
+
+Cele două aplicații
+Pedrotti site
+https://pedrotti-demo.vercel.app
+Aici există:
+
+
+site public
+
+
+floating widget button
+
+
+modal iframe
+
+
+intake form
+
+
+Nu există:
+
+
+dashboard
+
+
+login operator
+
+
+admin tools
+
+
+
+Dispatch AI
+https://multilingual-dispatch-flow.vercel.app
+Aici există:
+
+
+login
+
+
+dashboard global
+
+
+tenant dashboard
+
+
+memberships
+
+
+tenant settings
+
+
+operator tools
+
+
+
+Flow corect
+Clientul final:
+intră pe Pedrotti↓deschide widget↓trimite cerere↓nu se loghează
+Operatorul:
+intră pe Dispatch AI↓se loghează↓vede intake-uri↓lucrează requesturile
+Aceasta este arhitectura corectă SaaS.
+
+56. Problema cu dispatch-widget.js și base URL
+A apărut o eroare:
+GET https://pedrotti-demo.vercel.app/widget/pedrotti?embed=true 404
+
+Cauza
+Scriptul vechi folosea:
+window.location.origin
+Pe site-ul Pedrotti, asta înseamnă:
+https://pedrotti-demo.vercel.app
+Dar widgetul nu locuiește pe Pedrotti.
+Widgetul locuiește pe:
+https://multilingual-dispatch-flow.vercel.app
+
+Soluția
+Scriptul trebuie să deducă baza din propriul său URL:
+var scriptUrl = new URL(script.src);var defaultBaseUrl = scriptUrl.origin;
+Dacă scriptul este încărcat din:
+https://multilingual-dispatch-flow.vercel.app/dispatch-widget.js
+atunci defaultBaseUrl devine:
+https://multilingual-dispatch-flow.vercel.app
+
+Rezultatul corect
+Iframe-ul trebuie să deschidă:
+https://multilingual-dispatch-flow.vercel.app/widget/pedrotti?embed=true
+nu:
+https://pedrotti-demo.vercel.app/widget/pedrotti?embed=true
+
+57. Integrare Pedrotti cu next/script
+În Pedrotti, scriptul trebuie pus cu:
+import Script from "next/script";
+și în layout:
+<Script  src="https://multilingual-dispatch-flow.vercel.app/dispatch-widget.js"  data-company="pedrotti"  data-button-text="Need roadside help?"  data-accent-color="#dc2626"  strategy="afterInteractive"/>
+
+Observație importantă
+Scriptul trebuie pus în interiorul <body>, nu după </body>.
+Corect:
+<body>  {children}  <Script    src="https://multilingual-dispatch-flow.vercel.app/dispatch-widget.js"    data-company="pedrotti"    data-button-text="Need roadside help?"    data-accent-color="#dc2626"    strategy="afterInteractive"  /></body>
+
+58. Stadiu actual după toate modificările
+În acest moment, produsul are o arhitectură mult mai clară.
+
+Public surface
+Accesibil pentru vizitatorii finali:
+/dispatch-widget.js/widget/[companySlug]/widget/[companySlug]?embed=true/api/emergency-intake
+
+Private tenant surface
+Accesibil doar pentru useri din tenant_memberships:
+/dashboard/[companySlug]/intakes
+
+Private platform surface
+Accesibil doar pentru useri din platform_admins:
+/dashboard/intakes/dashboard/admin/memberships/dashboard/admin/tenant-settings
+
+59. Model final actual
+Tu / Dispatch AI owner
+platform_admins:user_id = turole = owner
+Acces:
+/dashboard/intakes/dashboard/admin/*
+
+Pedrotti manager
+tenant_memberships:user_id = manager_pedrotticompany_slug = pedrottirole = manager
+Acces:
+/dashboard/pedrotti/intakes
+Viitor:
+/dashboard/pedrotti/users/dashboard/pedrotti/analytics
+
+Pedrotti operator
+tenant_memberships:user_id = operator_pedrotticompany_slug = pedrottirole = operator
+Acces:
+/dashboard/pedrotti/intakes
+Poate marca statusuri.
+
+Pedrotti readonly
+tenant_memberships:user_id = readonly_usercompany_slug = pedrottirole = readonly
+Acces viitor:
+vede datenu modifică status
+
+60. Ce mai trebuie ajustat în continuare
+60.1 API memberships
+Trebuie să fie complet refactorizat pe noua arhitectură:
+
+
+platform admin poate crea membership pentru orice tenant
+
+
+tenant manager va putea, în viitor, crea operatori doar pentru tenantul lui
+
+
+admin nu mai trebuie să fie rol valid în tenant_memberships
+
+
+dacă userul nu există, folosim inviteUserByEmail
+
+
+
+60.2 API status intake
+În forma actuală, status update trebuie întărit cu roluri:
+
+
+platform admin poate modifica orice intake
+
+
+manager/operator poate modifica doar tenantul lui
+
+
+readonly nu poate modifica
+
+
+
+60.3 Tenant manager UI
+Trebuie creată o versiune tenant-scoped de user management.
+Exemplu:
+/dashboard/pedrotti/users
+Acolo managerul Pedrotti poate adăuga:
+operatorreadonly
+dar nu poate adăuga:
+platform admin
+și nu poate crea users pentru:
+hotel-lago
+
+60.4 Tenant settings permissions
+Momentan tenant_settings este platform-admin-only.
+Mai târziu se poate decide dacă managerul tenantului poate edita anumite setări:
+
+
+button text
+
+
+culoare
+
+
+maybe WhatsApp number
+
+
+Dar probabil nu:
+
+
+company slug
+
+
+use case critic
+
+
+billing
+
+
+allowed domains
+
+
+
+61. Concluzie actualizată după modelul enterprise
+Dispatch AI a trecut de la un MVP multi-tenant funcțional la o arhitectură mult mai aproape de un SaaS enterprise.
+Cea mai importantă schimbare a fost separarea între:
+platform_admins
+și:
+tenant_memberships
+Această separare clarifică:
+cine administrează platforma
+versus:
+cine lucrează în tenantul unui client
+Produsul are acum următoarele straturi:
+
+
+public widget layer
+
+
+AI intake layer
+
+
+persistence layer
+
+
+tenant dashboard layer
+
+
+platform admin layer
+
+
+role-based auth layer
+
+
+DB-driven tenant settings
+
+
+embeddable widget script
+
+
+status workflow pentru intake-uri
+
+
+Următorul pas tehnic logic este finalizarea/refactorizarea completă a:
+app/api/admin/tenant-memberships/route.ts
+ca să respecte noul model enterprise:
+platform_admins → admin globaltenant_memberships → manager/operator/readonly tenant-scopedinviteUserByEmail → user onboarding fără login inițial

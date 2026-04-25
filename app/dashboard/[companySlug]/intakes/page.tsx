@@ -1,3 +1,4 @@
+import Link from "next/link";
 import IntakeList from "@/components/dashboard/IntakeList";
 import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
 import { getIntakesByCompany } from "@/lib/dashboard/intakes";
@@ -11,6 +12,7 @@ type PageProps = {
 };
 
 export default async function TenantIntakesPage({ params }: PageProps) {
+
   const { companySlug } = await params;
 
   if (!companySlug) {
@@ -18,6 +20,10 @@ export default async function TenantIntakesPage({ params }: PageProps) {
   }
 
   const result = await requireTenantAccess(companySlug);
+  const isManager = result.membership.role === "manager";
+    const canManageStatus =
+  result.membership.role === "manager" ||
+  result.membership.role === "operator";
 
   try {
     const intakes = await getIntakesByCompany(companySlug, 50);
@@ -39,11 +45,34 @@ export default async function TenantIntakesPage({ params }: PageProps) {
               tenantLabel={result.membership.company_slug}
             />
           </div>
+          {isManager ? (
+  <div className="mt-6">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <h2 className="text-lg font-semibold text-zinc-900">
+        Tenant tools
+      </h2>
+
+      <p className="mt-2 text-sm text-zinc-600">
+        Manage users and permissions for this tenant.
+      </p>
+
+      <div className="mt-4">
+        <Link
+          href={`/dashboard/${companySlug}/users`}
+          className="inline-flex rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Manage users
+        </Link>
+      </div>
+    </div>
+  </div>
+) : null}
 
           <div className="mt-8">
             <IntakeList
               intakes={intakes}
               emptyMessage="No requests yet for this company."
+              canManageStatus={canManageStatus}
             />
           </div>
         </div>

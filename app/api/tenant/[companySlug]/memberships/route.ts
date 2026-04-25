@@ -1,70 +1,85 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getCurrentPlatformAdmin } from "@/lib/auth/get-platform-admin";
+import { requireTenantAccess } from "@/lib/auth/require-tenant-access";
 
-const allowedRoles = ["operator", "manager", "readonly"] as const;
-  async function requireAdminApi() {
-  const current = await getCurrentPlatformAdmin();
+const allowedRoles = ["operator", "readonly"] as const;
 
-  if (current.status !== "ok") {
-    return null;
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ companySlug: string }> }
+) {
+  const { companySlug } = await params;
+
+  const result = await requireTenantAccess(companySlug);
+
+  if (result.membership.role !== "manager") {
+    return NextResponse.json(
+      { error: "Only managers can manage users" },
+      { status: 403 }
+    );
   }
-
-  return current;
-}
-
-export async function GET() {
-  const admin = await requireAdminApi();
-
-if (!admin) {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-}
 
   const { data, error } = await supabaseAdmin
     .from("tenant_memberships")
     .select("id, user_id, company_slug, role, created_at")
+    .eq("company_slug", companySlug)
     .order("created_at", { ascending: false });
 
   if (error) {
     return NextResponse.json(
-      { error: "Failed to load memberships" },
+      { error: "Failed to load tenant users" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ memberships: data ?? [] });
+  return NextResponse.json({
+    memberships: data ?? [],
+  });
 }
 
-export async function POST(req: Request) {
-  const admin = await requireAdminApi();
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ companySlug: string }> }
+) {
+  const { companySlug } = await params;
 
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  const result = await requireTenantAccess(companySlug);
+
+  if (result.membership.role !== "manager") {
+    return NextResponse.json(
+      { error: "Only managers can manage users" },
+      { status: 403 }
+    );
   }
 
   const body = await req.json();
 
   const email =
-    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    typeof body.email === "string"
+      ? body.email.trim().toLowerCase()
+      : "";
 
-  const companySlug =
-    typeof body.companySlug === "string" ? body.companySlug.trim() : "";
-
-  const role = typeof body.role === "string" ? body.role.trim() : "";
+  const role =
+    typeof body.role === "string"
+      ? body.role.trim()
+      : "";
 
   if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
-  }
-
-  if (!companySlug) {
     return NextResponse.json(
-      { error: "Company slug is required" },
+      { error: "Email is required" },
       { status: 400 }
     );
   }
 
-  if (!allowedRoles.includes(role as (typeof allowedRoles)[number])) {
-    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  if (
+    !allowedRoles.includes(
+      role as (typeof allowedRoles)[number]
+    )
+  ) {
+    return NextResponse.json(
+      { error: "Invalid role" },
+      { status: 400 }
+    );
   }
 
   const { data: usersData, error: usersError } =
@@ -84,7 +99,6 @@ export async function POST(req: Request) {
   if (!authUser) {
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
       "https://multilingual-dispatch-flow.vercel.app";
 
     const { data: inviteData, error: inviteError } =
@@ -104,7 +118,7 @@ export async function POST(req: Request) {
 
   if (!authUser) {
     return NextResponse.json(
-      { error: "Could not create or find auth user." },
+      { error: "Could not create user" },
       { status: 500 }
     );
   }
@@ -133,8 +147,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     membership: data,
-    invited: !usersData.users.some(
-      (user) => user.email?.toLowerCase() === email
-    ),
   });
 }
