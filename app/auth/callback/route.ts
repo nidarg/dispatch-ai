@@ -27,24 +27,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 🔥 ia tenantul
-  const { data } = await supabaseAdmin
-    .from("tenant_memberships")
-    .select("company_slug, role")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
+  const { data: platformAdmin } = await supabaseAdmin
+  .from("platform_admins")
+  .select("role")
+  .eq("user_id", user.id)
+  .maybeSingle();
 
-  if (!data) {
-    return NextResponse.redirect(new URL("/unauthorized", req.url));
-  }
-
-  if (data.role === "admin") {
+if (platformAdmin) {
   return NextResponse.redirect(new URL("/dashboard/intakes", req.url));
 }
 
-  // 🔥 redirect direct în tenant
-  return NextResponse.redirect(
-    new URL(`/dashboard/${data.company_slug}/intakes`, req.url)
-  );
+const { data: membership } = await supabaseAdmin
+  .from("tenant_memberships")
+  .select("company_slug, role")
+  .eq("user_id", user.id)
+  .limit(1)
+  .maybeSingle();
+
+if (!membership) {
+  return NextResponse.redirect(new URL("/unauthorized", req.url));
+}
+
+return NextResponse.redirect(
+  new URL(`/dashboard/${membership.company_slug}/intakes`, req.url)
+);
 }

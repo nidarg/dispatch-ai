@@ -1,18 +1,14 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserTenant } from "./get-user-tenant";
+import { getCurrentPlatformAdmin } from "./get-platform-admin";
 
 export async function requirePlatformAdmin() {
-  const result = await getCurrentUserTenant();
+  const result = await getCurrentPlatformAdmin();
 
   if (result.status === "no-user") {
     redirect("/login");
   }
 
-  if (result.status === "no-membership") {
-    redirect("/unauthorized");
-  }
-
-  if (result.membership.role !== "admin") {
+  if (result.status === "not-platform-admin") {
     redirect("/unauthorized");
   }
 
