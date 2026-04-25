@@ -13,6 +13,20 @@ export type IntakeRow = {
   created_at: string;
 };
 
+export async function getLatestIntakes(limit = 50): Promise<IntakeRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from("emergency_intakes")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as IntakeRow[];
+}
+
 export async function getIntakesByCompany(
   companySlug: string,
   options?: {
