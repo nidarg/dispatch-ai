@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getCurrentUserTenant } from "@/lib/auth/get-user-tenant";
+import { getCurrentPlatformAdmin } from "@/lib/auth/get-platform-admin";
 
 const allowedRoles = ["admin", "operator", "manager", "readonly"] as const;
+  async function requireAdminApi() {
+  const current = await getCurrentPlatformAdmin();
+
+  if (current.status !== "ok") {
+    return null;
+  }
+
+  return current;
+}
 
 export async function GET() {
-  const current = await getCurrentUserTenant();
+  const admin = await requireAdminApi();
 
-  if (current.status !== "ok" || current.membership.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+if (!admin) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+}
 
   const { data, error } = await supabaseAdmin
     .from("tenant_memberships")
@@ -27,11 +36,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const current = await getCurrentUserTenant();
+  const admin = await requireAdminApi();
 
-  if (current.status !== "ok" || current.membership.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+if (!admin) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+}
 
   const body = await req.json();
 
