@@ -1,6 +1,7 @@
 import MembershipsAdmin from "@/components/admin/MembershipsAdmin";
 import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+import { Link } from "lucide-react";
 
 export default async function TenantMembershipsAdminPage() {
   const result = await requirePlatformAdmin();
@@ -22,6 +23,14 @@ export default async function TenantMembershipsAdminPage() {
             tenantLabel="Platform Admin"
           />
         </div>
+        <div className="mt-6">
+  <Link
+    href="/"
+    className="inline-flex rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+  >
+    ← Back home
+  </Link>
+</div>
 
         <div className="mt-8">
           <MembershipsAdmin />
