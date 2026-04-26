@@ -57,6 +57,12 @@ export default function IntakeCard({
   const [loadingStatus, setLoadingStatus] = useState<IntakeStatus | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const assignedUser = intake.assigned_user ?? null;
+
+  const assignedLabel = assignedUser
+    ? assignedUser.full_name || assignedUser.email
+    : "Unassigned";
+
   const updateStatus = async (nextStatus: IntakeStatus) => {
     if (nextStatus === status) return;
 
@@ -77,9 +83,7 @@ export default function IntakeCard({
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
 
-        throw new Error(
-          errorData?.error || "Failed to update status."
-        );
+        throw new Error(errorData?.error || "Failed to update status.");
       }
 
       setStatus(nextStatus);
@@ -87,9 +91,7 @@ export default function IntakeCard({
       console.error("Failed to update intake status:", error);
 
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Failed to update status."
+        error instanceof Error ? error.message : "Failed to update status."
       );
     } finally {
       setLoadingStatus(null);
@@ -125,6 +127,16 @@ export default function IntakeCard({
           >
             {formatStatus(status)}
           </span>
+
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+              assignedUser
+                ? "bg-purple-100 text-purple-700"
+                : "bg-zinc-100 text-zinc-600"
+            }`}
+          >
+            {assignedUser ? "Assigned" : "Unassigned"}
+          </span>
         </div>
 
         <span className="text-xs text-zinc-400">
@@ -153,12 +165,28 @@ export default function IntakeCard({
           </p>
         </div>
 
-        <div className="text-xs text-zinc-500">
-          Language:{" "}
-          <span className="font-medium text-zinc-700">
-            {intake.detected_language}
-          </span>
+        <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+          <div>
+            Language:{" "}
+            <span className="font-medium text-zinc-700">
+              {intake.detected_language}
+            </span>
+          </div>
+
+          <div>
+            Assignment:{" "}
+            <span className="font-medium text-zinc-700">{assignedLabel}</span>
+          </div>
         </div>
+
+        {intake.assigned_at ? (
+          <div className="text-xs text-zinc-500">
+            Assigned at:{" "}
+            <span className="font-medium text-zinc-700">
+              {new Date(intake.assigned_at).toLocaleString()}
+            </span>
+          </div>
+        ) : null}
 
         {canManageStatus ? (
           <div className="flex flex-wrap gap-2 pt-2">
@@ -168,23 +196,16 @@ export default function IntakeCard({
               disabled={loadingStatus !== null || status === "new"}
               className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loadingStatus === "new"
-                ? "Updating..."
-                : "Mark new"}
+              {loadingStatus === "new" ? "Updating..." : "Mark new"}
             </button>
 
             <button
               type="button"
               onClick={() => updateStatus("in_progress")}
-              disabled={
-                loadingStatus !== null ||
-                status === "in_progress"
-              }
+              disabled={loadingStatus !== null || status === "in_progress"}
               className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loadingStatus === "in_progress"
-                ? "Updating..."
-                : "Start"}
+              {loadingStatus === "in_progress" ? "Updating..." : "Start"}
             </button>
 
             <button
@@ -193,9 +214,7 @@ export default function IntakeCard({
               disabled={loadingStatus !== null || isResolved}
               className="rounded-xl bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loadingStatus === "resolved"
-                ? "Updating..."
-                : "Resolve"}
+              {loadingStatus === "resolved" ? "Updating..." : "Resolve"}
             </button>
           </div>
         ) : (

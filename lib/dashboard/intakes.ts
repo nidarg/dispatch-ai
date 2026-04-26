@@ -20,6 +20,10 @@ export type IntakeRow = {
   // Assignment system
   assigned_to: string | null;
   assigned_at: string | null;
+  assigned_user?: {
+  email: string;
+  full_name: string | null;
+} | null;
 };
 
 export type TenantOption = {
@@ -46,7 +50,13 @@ export async function getLatestIntakes(
 
   let query = supabaseAdmin
     .from("emergency_intakes")
-    .select("*")
+    .select(`
+  *,
+  assigned_user:user_profiles!emergency_intakes_assigned_to_fkey (
+    email,
+    full_name
+  )
+`)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -91,7 +101,13 @@ export async function getIntakesByCompany(
 
   let query = supabaseAdmin
     .from("emergency_intakes")
-    .select("*")
+    .select(`
+  *,
+  assigned_user:user_profiles!emergency_intakes_assigned_to_fkey (
+    email,
+    full_name
+  )
+`)
     .eq("company_slug", companySlug)
     .order("created_at", { ascending: false })
     .limit(limit);
