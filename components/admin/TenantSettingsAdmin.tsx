@@ -170,8 +170,7 @@ className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm t
               value={whatsappNumber}
               onChange={(e) => setWhatsappNumber(e.target.value)}
               placeholder="40755741335"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-              required
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              required
             />
             <p className="mt-2 text-xs text-zinc-500">
               Use international format, without +.
@@ -275,8 +274,7 @@ className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm t
                 key={tenant.id}
                 type="button"
                 onClick={() => editTenant(tenant)}
-                className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-left transition hover:bg-zinc-50"
-              >
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-zinc-900">
