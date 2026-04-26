@@ -142,8 +142,7 @@ export default function TenantSettingsAdmin() {
               value={companySlug}
               onChange={(e) => setCompanySlug(e.target.value)}
               placeholder="pedrotti"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-              required
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              required
             />
             <p className="mt-2 text-xs text-zinc-500">
               Used in /widget/[slug] and data-company.
@@ -158,7 +157,7 @@ export default function TenantSettingsAdmin() {
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Pedrotti"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"
               required
             />
           </div>
@@ -187,8 +186,7 @@ export default function TenantSettingsAdmin() {
               value={operatorLanguage}
               onChange={(e) => setOperatorLanguage(e.target.value)}
               placeholder="Italian"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-            />
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"            />
           </div>
 
           <div>
@@ -199,8 +197,7 @@ export default function TenantSettingsAdmin() {
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
               placeholder="#dc2626"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-            />
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"            />
           </div>
 
           <div>
@@ -212,7 +209,7 @@ export default function TenantSettingsAdmin() {
               onChange={(e) =>
                 setUseCase(e.target.value as "roadside" | "hotel")
               }
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"
             >
               <option value="roadside">roadside</option>
               <option value="hotel">hotel</option>

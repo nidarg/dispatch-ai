@@ -100,8 +100,7 @@ export default function MembershipsAdmin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="operator@company.com"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-              required
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              required
             />
             <p className="mt-2 text-xs text-zinc-500">
               The user must have logged in at least once.
@@ -116,7 +115,7 @@ export default function MembershipsAdmin() {
               value={companySlug}
               onChange={(e) => setCompanySlug(e.target.value)}
               placeholder="pedrotti"
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"
               required
             />
           </div>
@@ -128,8 +127,7 @@ export default function MembershipsAdmin() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-            >
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"            >
               <option value="admin">admin</option>
               <option value="operator">operator</option>
               <option value="manager">manager</option>

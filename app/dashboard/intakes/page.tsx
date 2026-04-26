@@ -51,6 +51,15 @@ export default async function DashboardIntakesPage({
               tenantLabel={`Platform ${admin.platformAdmin.role}`}
             />
           </div>
+          <div className="mt-6">
+  <Link
+    href="/"
+    className="inline-flex rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+  >
+    ← Back home
+  </Link>
+</div>
+          
 
           <section className="mt-8">
             <h2 className="text-lg font-semibold text-zinc-900">
