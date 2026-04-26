@@ -123,6 +123,18 @@ export default async function HomePage() {
                 Tenant-specific view
               </div>
             </Link>
+            <Link
+  href="/dashboard/admin/analytics"
+  className="rounded-2xl border bg-white p-5 hover:bg-zinc-50"
+>
+  <div className="font-semibold">
+    Analytics
+  </div>
+
+  <div className="text-sm text-zinc-600">
+    Global platform metrics and operational overview
+  </div>
+</Link>
           </div>
         </section>
 
