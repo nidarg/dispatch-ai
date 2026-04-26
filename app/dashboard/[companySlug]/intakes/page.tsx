@@ -248,14 +248,14 @@ const selectedSearch =
       name="search"
       defaultValue={selectedSearch ?? ""}
       placeholder="Search message or summary..."
-      className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              required
     />
 
     <input
       name="language"
       defaultValue={selectedLanguage ?? ""}
       placeholder="Language, e.g. German"
-      className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500"              required
     />
 
     <button

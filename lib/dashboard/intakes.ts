@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 
+export type IntakeStatus = "new" | "in_progress" | "resolved";
+export type IntakePriority = "low" | "normal" | "high";
+
 export type IntakeRow = {
   id: number;
   company_slug: string;
@@ -7,10 +10,16 @@ export type IntakeRow = {
   original_message: string;
   summary: string;
   detected_language: string;
-  priority: "low" | "normal" | "high";
-  status: "new" | "in_progress" | "resolved";
+  priority: IntakePriority;
+  status: IntakeStatus;
   payload: Record<string, unknown>;
   created_at: string;
+  updated_at: string | null;
+  resolved_at: string | null;
+
+  // Assignment system
+  assigned_to: string | null;
+  assigned_at: string | null;
 };
 
 export type TenantOption = {
@@ -18,28 +27,20 @@ export type TenantOption = {
   company_name: string;
 };
 
-export async function getTenantOptions(): Promise<TenantOption[]> {
-  const { data, error } = await supabaseAdmin
-    .from("tenant_settings")
-    .select("company_slug, company_name")
-    .order("company_name", { ascending: true });
+type IntakeFilters = {
+  limit?: number;
+  status?: IntakeStatus;
+  priority?: IntakePriority;
+  language?: string;
+  search?: string;
+};
 
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? []) as TenantOption[];
-}
+type GlobalIntakeFilters = IntakeFilters & {
+  companySlug?: string;
+};
 
 export async function getLatestIntakes(
-  options?: {
-    limit?: number;
-    companySlug?: string;
-    status?: "new" | "in_progress" | "resolved";
-    priority?: "low" | "normal" | "high";
-    language?: string;
-    search?: string;
-  }
+  options?: GlobalIntakeFilters
 ): Promise<IntakeRow[]> {
   const limit = options?.limit ?? 50;
 
@@ -84,13 +85,7 @@ export async function getLatestIntakes(
 
 export async function getIntakesByCompany(
   companySlug: string,
-  options?: {
-    limit?: number;
-    status?: "new" | "in_progress" | "resolved";
-    priority?: "low" | "normal" | "high";
-    language?: string;
-    search?: string;
-  }
+  options?: IntakeFilters
 ): Promise<IntakeRow[]> {
   const limit = options?.limit ?? 50;
 
@@ -113,9 +108,11 @@ export async function getIntakesByCompany(
     query = query.eq("detected_language", options.language);
   }
 
-  if (options?.search?.trim()) {
+  const search = options?.search?.trim();
+
+  if (search) {
     query = query.or(
-      `summary.ilike.%${options.search.trim()}%,original_message.ilike.%${options.search.trim()}%`
+      `summary.ilike.%${search}%,original_message.ilike.%${search}%`
     );
   }
 
@@ -126,4 +123,17 @@ export async function getIntakesByCompany(
   }
 
   return (data ?? []) as IntakeRow[];
+}
+
+export async function getTenantOptions(): Promise<TenantOption[]> {
+  const { data, error } = await supabaseAdmin
+    .from("tenant_settings")
+    .select("company_slug, company_name")
+    .order("company_name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as TenantOption[];
 }
