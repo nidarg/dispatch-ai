@@ -19,7 +19,6 @@ export async function getLatestIntakes(limit = 50): Promise<IntakeRow[]> {
     .select("*")
     .order("created_at", { ascending: false })
     .limit(limit);
-
   if (error) {
     throw error;
   }
