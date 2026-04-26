@@ -1,7 +1,7 @@
 import MembershipsAdmin from "@/components/admin/MembershipsAdmin";
 import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
-import { Link } from "lucide-react";
+import Link from "next/link";
 
 export default async function TenantMembershipsAdminPage() {
   const result = await requirePlatformAdmin();
