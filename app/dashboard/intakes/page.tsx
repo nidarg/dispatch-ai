@@ -1,14 +1,38 @@
 import Link from "next/link";
 import IntakeList from "@/components/dashboard/IntakeList";
 import DashboardUserBar from "@/components/dashboard/DashboardUserBar";
-import { getLatestIntakes } from "@/lib/dashboard/intakes";
+import {
+  getLatestIntakes,
+  getTenantOptions,
+} from "@/lib/dashboard/intakes";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 
-export default async function DashboardIntakesPage() {
-  const result = await requirePlatformAdmin();
+type PageProps = {
+  searchParams: Promise<{
+    company?: string;
+  }>;
+};
+
+export default async function DashboardIntakesPage({
+  searchParams,
+}: PageProps) {
+  const admin = await requirePlatformAdmin();
+
+  const { company } = await searchParams;
+
+  const selectedCompany =
+    typeof company === "string" && company.trim()
+      ? company.trim()
+      : undefined;
 
   try {
-    const intakes = await getLatestIntakes(50);
+    const [intakes, tenants] = await Promise.all([
+      getLatestIntakes({
+        limit: 100,
+        companySlug: selectedCompany,
+      }),
+      getTenantOptions(),
+    ]);
 
     return (
       <main className="min-h-screen bg-zinc-50 px-6 py-10">
@@ -18,17 +42,15 @@ export default async function DashboardIntakesPage() {
           </h1>
 
           <p className="mt-2 text-zinc-600">
-            Latest intake requests from all tenants.
+            Global intake list across all tenants.
           </p>
 
           <div className="mt-6">
             <DashboardUserBar
-              email={result.user.email ?? "Unknown user"}
-              tenantLabel={`Platform ${result.platformAdmin.role}`}
+              email={admin.user.email ?? "Unknown user"}
+              tenantLabel={`Platform ${admin.platformAdmin.role}`}
             />
           </div>
-
-          {/* ================= ADMIN TOOLS ================= */}
 
           <section className="mt-8">
             <h2 className="text-lg font-semibold text-zinc-900">
@@ -64,10 +86,45 @@ export default async function DashboardIntakesPage() {
             </div>
           </section>
 
-          {/* ================= GLOBAL INTAKES ================= */}
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold text-zinc-900">
+              Company filter
+            </h2>
 
-          <div className="mt-10">
-            <IntakeList intakes={intakes} />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/dashboard/intakes"
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  !selectedCompany
+                    ? "bg-zinc-900 text-white"
+                    : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                All companies
+              </Link>
+
+              {tenants.map((tenant) => (
+                <Link
+                  key={tenant.company_slug}
+                  href={`/dashboard/intakes?company=${tenant.company_slug}`}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    selectedCompany === tenant.company_slug
+                      ? "bg-zinc-900 text-white"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  {tenant.company_name}
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <div className="mt-8">
+            <IntakeList
+              intakes={intakes}
+              emptyMessage="No intakes yet."
+              canManageStatus={true}
+            />
           </div>
         </div>
       </main>

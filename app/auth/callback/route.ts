@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   .maybeSingle();
 
 if (platformAdmin) {
-  return NextResponse.redirect(new URL("/dashboard/intakes", req.url));
+  return NextResponse.redirect(new URL("/", req.url));
 }
 
 const { data: membership } = await supabaseAdmin
